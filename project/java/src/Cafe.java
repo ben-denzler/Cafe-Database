@@ -358,22 +358,54 @@ public class Cafe {
       try {
          System.out.print("\tEnter user login: ");
          String login = in.readLine();
-         System.out.print("\tEnter user password: ");
-         String password = in.readLine();
-         System.out.print("\tEnter user phone: ");
-         String phone = in.readLine();
+         
+         // (EC) Add check if the login is already taken
+         boolean alreadyExists = false;
+         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", login);
+         int numLogin = esql.executeQuery(query);
+         if (numLogin > 0) {
+            alreadyExists = true;
+         }
+         if (alreadyExists) {
+            System.out.println("Username already taken please try again.");
+         }
+         else {
+            System.out.print("\tEnter user password: ");
+            String password = in.readLine();
+            // (EC) Add a check if the password does not contain certain characters
+            boolean hasCapital = false;
+            boolean hasSpecial = false;
+            boolean hasEightNums = false;
+            for (int i = 0; i < password.length(); ++i) {
+               char currentChar = password.charAt(i);
+               if (Character.isUpperCase(currentChar)) {
+                  hasCapital = true;
+               }
+               if (!(Character.isDigit(currentChar) || Character.isLetter(currentChar) || Character.isWhitespace(currentChar))) {
+                  hasSpecial = true;
+               }
+            }
+            if (password.length() >= 8) {
+               hasEightNums = true;
+            }
 
-         String type = "Customer";
-         String favItems = "";
+            if (hasCapital && hasSpecial && hasEightNums) {
+               System.out.print("\tEnter user phone: ");
+               String phone = in.readLine();
+      
+               String type = "Customer";
+               String favItems = "";
+               String query2 = String.format(
+                     "INSERT INTO USERS (phoneNum, login, password, favItems, type) VALUES ('%s','%s','%s','%s','%s')", phone,
+                     login, password, favItems, type);
 
-         // FIX: (EC) Add check if the login is already taken
-         // FIX: (EC) Add a check if the password does not contain certain characters
-         String query = String.format(
-               "INSERT INTO USERS (phoneNum, login, password, favItems, type) VALUES ('%s','%s','%s','%s','%s')", phone,
-               login, password, favItems, type);
-
-         esql.executeUpdate(query);
-         System.out.println("User successfully created!");
+               esql.executeUpdate(query2);
+               System.out.println("User successfully created!");
+            }
+            else {
+               System.out.println("Password must have a minimum of 8 characters including a capital letter and a special character (ex: ~!@#$%^&*_-+=`|(){}[]:;'<>,.?)");
+            }
+         }
       } catch (Exception e) {
          System.err.println(e.getMessage());
       }
