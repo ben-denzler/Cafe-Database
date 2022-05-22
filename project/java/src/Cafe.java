@@ -117,8 +117,9 @@ public class Cafe {
             System.out.println();
             outputHeader = false;
          }
-         for (int i = 1; i <= numCol; ++i)
+         for (int i = 1; i <= numCol; ++i) {
             System.out.print(rs.getString(i) + "\t");
+         }
          System.out.println();
          ++rowCount;
       } // end while
@@ -428,16 +429,51 @@ public class Cafe {
          if (isManager) System.out.println("4. Update Menu");
          System.out.println(".........................");
          System.out.println("9. Return to Main Menu");
+         int rowNum = 0;
+
          switch (readChoice()) {
+
             case 1:
-               
+               System.out.println("\nDrinks:\n-------------------------");
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
+               rowNum = esql.executeQueryAndPrintResult(query);
+               System.out.println(String.format("(%d items)", rowNum));
+
+               System.out.println("\nSweets:\n-------------------------");
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
+               rowNum = esql.executeQueryAndPrintResult(query);
+               System.out.println(String.format("(%d items)", rowNum));
+
+               System.out.println("\nSoup:\n-------------------------");
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
+               rowNum = esql.executeQueryAndPrintResult(query);
+               System.out.println(String.format("(%d items)", rowNum));
                break;
+
             case 2:
-               
+               System.out.print("\nEnter item name: ");
+               String itemName = in.readLine();
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+               rowNum = esql.executeQueryAndPrintResult(query);
+               if (rowNum > 0) {
+                  System.out.println(String.format("(%d items)", rowNum));
+               } else {
+                  System.out.println("Item not found, please try again.");
+               }
                break;
+
             case 3:
-               
+               System.out.print("\nEnter 'Drinks', 'Sweets', or 'Soup': ");
+               String type = in.readLine();
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = '%s'", type);
+               rowNum = esql.executeQueryAndPrintResult(query);
+               if (rowNum > 0) {
+                  System.out.println(String.format("(%d items)", rowNum));
+               } else {
+                  System.out.println("Invalid input, please try again.");
+               } 
                break;
+
             case 4:
                if (!isManager) 
                   System.out.println("Unrecognized choice!");
@@ -493,3 +529,6 @@ public class Cafe {
    }
 
 }// end Cafe
+
+// For debugging
+// System.out.println(String.format("itemName = %s, rowNum = %d", itemName, rowNum));
