@@ -450,8 +450,9 @@ public class Cafe {
          boolean isManager = false;
          String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager,,,'", authorizedUser);
          int userNum = esql.executeQuery(query);
-         if (userNum > 0)
+         if (userNum > 0) {
             isManager = true;
+         }
 
          System.out.println("\nMENU OPTIONS");
          System.out.println("---------");
@@ -486,6 +487,7 @@ public class Cafe {
                System.out.print("\nEnter item name: ");
                String itemName = in.readLine();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+               System.out.println();
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
@@ -498,6 +500,7 @@ public class Cafe {
                System.out.print("\nEnter 'Drinks', 'Sweets', or 'Soup': ");
                String type = in.readLine();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = '%s'", type);
+               System.out.println();
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
@@ -507,11 +510,84 @@ public class Cafe {
                break;
 
             case 4:
-               if (!isManager) 
+               if (!isManager) {
                   System.out.println("Unrecognized choice!");
+                  break;
+               }
+
+               System.out.println("\nEDIT MENU");
+               System.out.println("---------");
+               System.out.println("1. Add Item");
+               System.out.println("2. Delete Item");
+               System.out.println("3. Update Item");
+               System.out.println(".........................");
+               System.out.println("9. Return to Main Menu");
+
+               switch (readChoice()) {
+
+                  case 1:
+                     System.out.println("\nEnter the name of the new item: ");
+                     String newName = in.readLine();
+                     String newNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newName);
+                     rowNum = esql.executeQuery(newNameQuery);
+                     while ((newName.length() > 50) || (rowNum > 0)) {
+                        System.out.println("Name already exists, or is > 50 characters. Try again: ");
+                        newName = in.readLine();
+                        newNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newName);
+                        rowNum = esql.executeQuery(newNameQuery);
+                     }
+
+                     System.out.println("Enter the item's type ('Drinks', 'Sweets', or 'Soup'): ");
+                     String newType = in.readLine();
+                     while (!(newType.equals("Drinks")) && !(newType.equals("Sweets")) && !(newType.equals("Soup"))) {
+                        System.out.println("Type must be 'Drinks', 'Sweets', or 'Soup'. Try again: ");
+                        newType = in.readLine();
+                     }
+
+                     System.out.println("Enter the item's price (exclude '$'): ");
+                     String newPrice = in.readLine();
+                     Float newPriceFloat;
+                     try {
+                        newPriceFloat = Float.parseFloat(newPrice);  // Parse string as a float
+                     } catch (Exception e) {
+                        System.out.println("Price must be of the form '12.34'. Please re-add the item.");
+                        break;
+                     }
+
+                     System.out.println("Enter the item's description: ");
+                     String newDescription = in.readLine();
+                     while (newDescription.length() > 400) {
+                        System.out.println("Description must be less than 400 characters. Try again: ");
+                        newDescription = in.readLine();
+                     }
+                     
+                     System.out.println("Enter the item's image URL: ");
+                     String newImageURL = in.readLine();
+                     while (newImageURL.length() > 256) {
+                        System.out.println("Image URL must be less than 256 characters. Try again: ");
+                        newImageURL = in.readLine();
+                     }
+
+                     String newItemUpdate = String.format("INSERT INTO Menu VALUES ('%s', '%s', '%s', '%s', '%s')", newName, newType, newPriceFloat.toString(), newDescription, newImageURL);
+                     esql.executeUpdate(newItemUpdate);
+                     System.out.println("\nItem added!");
+                     break;
+
+                  case 2:
+                     break;
+
+                  case 3:
+                     break;
+
+                  default:
+                     System.out.println("Unrecognized choice!");
+                     break;
+               }
                break;
+
             case 9:
                break;
+
             default:
                System.out.println("Unrecognized choice!");
                break;
