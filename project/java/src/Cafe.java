@@ -574,6 +574,19 @@ public class Cafe {
                      break;
 
                   case 2:
+                     System.out.println("\nEnter the name of the item to delete: ");
+                     String deleteName = in.readLine();
+                     String deleteNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", deleteName);
+                     rowNum = esql.executeQuery(deleteNameQuery);
+                     while ((deleteName.length() > 50) || (rowNum == 0)) {
+                        System.out.println("Name not found, or is > 50 characters. Try again: ");
+                        deleteName = in.readLine();
+                        deleteNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", deleteName);
+                        rowNum = esql.executeQuery(deleteNameQuery);
+                     }
+                     String deletionUpdate = String.format("DELETE FROM Menu WHERE itemName = '%s'", deleteName);
+                     esql.executeUpdate(deletionUpdate);
+                     System.out.println("\nItem deleted!");
                      break;
 
                   case 3:
