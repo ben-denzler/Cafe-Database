@@ -351,6 +351,24 @@ public class Cafe {
       return input;
    }// end readChoice
 
+   public static boolean checkPassword(String password) {
+      boolean hasCapital = false;
+      boolean hasSpecial = false;
+      boolean hasEightNums = false;
+      for (int i = 0; i < password.length(); ++i) {
+         char currentChar = password.charAt(i);
+         if (Character.isUpperCase(currentChar)) {
+            hasCapital = true;
+         }
+         if (!(Character.isDigit(currentChar) || Character.isLetter(currentChar) || Character.isWhitespace(currentChar))) {
+            hasSpecial = true;
+         }
+      }
+      if (password.length() >= 8) {
+         hasEightNums = true;
+      }
+      return (hasCapital && hasSpecial && hasEightNums);
+   }
    /*
     * Creates a new user with provided login, passowrd and phoneNum
     **/
@@ -373,23 +391,7 @@ public class Cafe {
             System.out.print("\tEnter user password: ");
             String password = in.readLine();
             // (EC) Add a check if the password does not contain certain characters
-            boolean hasCapital = false;
-            boolean hasSpecial = false;
-            boolean hasEightNums = false;
-            for (int i = 0; i < password.length(); ++i) {
-               char currentChar = password.charAt(i);
-               if (Character.isUpperCase(currentChar)) {
-                  hasCapital = true;
-               }
-               if (!(Character.isDigit(currentChar) || Character.isLetter(currentChar) || Character.isWhitespace(currentChar))) {
-                  hasSpecial = true;
-               }
-            }
-            if (password.length() >= 8) {
-               hasEightNums = true;
-            }
-
-            if (hasCapital && hasSpecial && hasEightNums) {
+            if (checkPassword(password)) {
                System.out.print("\tEnter user phone: ");
                String phone = in.readLine();
       
@@ -507,7 +509,7 @@ public class Cafe {
                break;
 
             case 4:
-               if (!isManager) 
+               if (!isManager) {
                   System.out.println("Unrecognized choice!");
                   break;
                }
@@ -634,8 +636,13 @@ public class Cafe {
             case 1:
                System.out.println("\nEnter a new password: ");
                String password = in.readLine();
+               while (!checkPassword(password)) {
+                  System.out.println("Password must have a minimum of 8 characters including a capital letter and a special character (ex: ~!@#$%^&*_-+=`|(){}[]:;'<>,.?)");
+                  password = in.readLine();
+               }
                query = String.format("UPDATE USERS SET password = '%s' WHERE login = '%s'", password, updatedUser);
                esql.executeUpdate(query);
+               System.out.println("User successfully created!");
                System.out.println("\nYour password has been updated.");
                break;
 
@@ -672,7 +679,26 @@ public class Cafe {
                else {
                   System.out.println("\nPlease enter the username of the User you are changing.\n");
                   updatedUser = in.readLine();
-                  UpdateProfile(esql, updatedUser);
+                  
+                  boolean userFound = false;
+                  query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", updatedUser);
+                  int numLogin = esql.executeQuery(query);
+                  if (numLogin > 0) {
+                     userFound = true;
+                  }
+                  while(!userFound && !updatedUser.equals("9")) {
+                     System.out.println("Username not found. Please try again or press '9' to quit.");
+                     updatedUser = in.readLine();
+                     query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", updatedUser);
+                     numLogin = esql.executeQuery(query);
+                     if (numLogin > 0) {
+                        userFound = true;
+                     }
+                  }
+                  if (!updatedUser.equals("9")) {
+                     UpdateProfile(esql, updatedUser);
+                  }
+
                }
                break;
             case 9:
