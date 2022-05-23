@@ -351,6 +351,24 @@ public class Cafe {
       return input;
    }// end readChoice
 
+   public static boolean checkPassword(String password) {
+      boolean hasCapital = false;
+      boolean hasSpecial = false;
+      boolean hasEightNums = false;
+      for (int i = 0; i < password.length(); ++i) {
+         char currentChar = password.charAt(i);
+         if (Character.isUpperCase(currentChar)) {
+            hasCapital = true;
+         }
+         if (!(Character.isDigit(currentChar) || Character.isLetter(currentChar) || Character.isWhitespace(currentChar))) {
+            hasSpecial = true;
+         }
+      }
+      if (password.length() >= 8) {
+         hasEightNums = true;
+      }
+      return (hasCapital && hasSpecial && hasEightNums);
+   }
    /*
     * Creates a new user with provided login, passowrd and phoneNum
     **/
@@ -373,23 +391,7 @@ public class Cafe {
             System.out.print("\tEnter user password: ");
             String password = in.readLine();
             // (EC) Add a check if the password does not contain certain characters
-            boolean hasCapital = false;
-            boolean hasSpecial = false;
-            boolean hasEightNums = false;
-            for (int i = 0; i < password.length(); ++i) {
-               char currentChar = password.charAt(i);
-               if (Character.isUpperCase(currentChar)) {
-                  hasCapital = true;
-               }
-               if (!(Character.isDigit(currentChar) || Character.isLetter(currentChar) || Character.isWhitespace(currentChar))) {
-                  hasSpecial = true;
-               }
-            }
-            if (password.length() >= 8) {
-               hasEightNums = true;
-            }
-
-            if (hasCapital && hasSpecial && hasEightNums) {
+            if (checkPassword(password)) {
                System.out.print("\tEnter user phone: ");
                String phone = in.readLine();
       
@@ -439,11 +441,10 @@ public class Cafe {
       }
    }// end
 
-   // FIX: Print Menu
-   // FIX: Search by itemName
-   // FIX: Search by type
-   // FIX: If manager, add option to add/delete/update items
-   // FIX: Create an option to go back to the Main Menu
+   /*
+    * Users can browse menu and search by name/category.
+    * Managers can also update menu items.
+    */
    public static void Menu(Cafe esql, String authorizedUser) {
       try {
          // Check if the user is a Manager
@@ -507,7 +508,7 @@ public class Cafe {
                break;
 
             case 4:
-               if (!isManager) 
+               if (!isManager) {
                   System.out.println("Unrecognized choice!");
                   break;
                }
@@ -587,6 +588,101 @@ public class Cafe {
                      break;
 
                   case 3:
+                     System.out.println("\nEnter the name of the item to update: ");
+                     String itemToUpdate = in.readLine();
+                     String itemToUpdateQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", itemToUpdate);
+                     rowNum = esql.executeQuery(itemToUpdateQuery);
+                     while ((itemToUpdate.length() > 50) || (rowNum == 0)) {
+                        System.out.println("Item doesn't exist, or is > 50 characters. Try again: ");
+                        itemToUpdate = in.readLine();
+                        itemToUpdateQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", itemToUpdate);
+                        rowNum = esql.executeQuery(itemToUpdateQuery);
+                     }
+                     
+                     System.out.println(String.format("\nUPDATE ITEM MENU (updating '%s')", itemToUpdate));
+                     System.out.println("---------");
+                     System.out.println("1. Update Name");
+                     System.out.println("2. Update Type");
+                     System.out.println("3. Update Price");
+                     System.out.println("4. Update Description");
+                     System.out.println("5. Update Image URL");
+                     System.out.println(".........................");
+                     System.out.println("9. Return to Main Menu");
+
+                     switch (readChoice()) {
+
+                        case 1:
+                           System.out.println(String.format("Enter a new name for '%s': ", itemToUpdate));
+                           String newItemName = in.readLine();
+                           String newItemNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newItemName);
+                           rowNum = esql.executeQuery(newItemNameQuery);
+                           while ((newItemName.length() > 50) || (rowNum > 0)) {
+                              System.out.println("Name already exists, or is > 50 characters. Try again: ");
+                              newItemName = in.readLine();
+                              newItemNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newItemName);
+                              rowNum = esql.executeQuery(newItemNameQuery);
+                           }
+                           String itemNameUpdate = String.format("UPDATE Menu SET itemName = '%s' WHERE itemName = '%s'", newItemName, itemToUpdate);
+                           esql.executeUpdate(itemNameUpdate);
+                           System.out.println("\nName updated!");
+                           break;
+
+                        case 2:
+                           System.out.println(String.format("Enter a new type for '%s' ('Drinks', 'Sweets', or 'Soup'): ", itemToUpdate));
+                           String newItemType = in.readLine();
+                           while (!(newItemType.equals("Drinks")) && !(newItemType.equals("Sweets")) && !(newItemType.equals("Soup"))) {
+                              System.out.println("Type must be 'Drinks', 'Sweets', or 'Soup'. Try again: ");
+                              newItemType = in.readLine();
+                           }
+                           String itemTypeUpdate = String.format("UPDATE Menu SET type = '%s' WHERE itemName = '%s'", newItemType, itemToUpdate);
+                           esql.executeUpdate(itemTypeUpdate);
+                           System.out.println("\nType updated!");
+                           break;
+
+                        case 3:
+                           System.out.println(String.format("Enter a new price for '%s' (of the form 12.34): ", itemToUpdate));
+                           String newItemPrice = in.readLine();
+                           Float newItemPriceFloat;
+                           try {
+                              newItemPriceFloat = Float.parseFloat(newItemPrice);  // Parse string as a float
+                           } catch (Exception e) {
+                              System.out.println("Price must be of the form '12.34'. Please restart the update.");
+                              break;
+                           }
+                           String itemPriceUpdate = String.format("UPDATE Menu SET price = '%s' WHERE itemName = '%s'", newItemPriceFloat.toString(), itemToUpdate);
+                           esql.executeUpdate(itemPriceUpdate);
+                           System.out.println("\nPrice updated!");
+                           break;
+
+                        case 4:
+                           System.out.println(String.format("Enter a new description for '%s': ", itemToUpdate));
+                           String newItemDescription = in.readLine();
+                           while (newItemDescription.length() > 400) {
+                              System.out.println("Description must be less than 400 characters. Try again: ");
+                              newItemDescription = in.readLine();
+                           }
+                           String itemDescriptionUpdate = String.format("UPDATE Menu SET description = '%s' WHERE itemName = '%s'", newItemDescription, itemToUpdate);
+                           esql.executeUpdate(itemDescriptionUpdate);
+                           System.out.println("\nDescription updated!");
+                           break;
+
+                        case 5:
+                           System.out.println(String.format("Enter a new image URL for '%s': ", itemToUpdate));
+                           String newItemImageURL = in.readLine();
+                           while (newItemImageURL.length() > 256) {
+                              System.out.println("Image URL must be less than 256 characters. Try again: ");
+                              newItemImageURL = in.readLine();
+                           }
+                           String itemImageURLUpdate = String.format("UPDATE Menu SET imageURL = '%s' WHERE itemName = '%s'", newItemImageURL, itemToUpdate);
+                           esql.executeUpdate(itemImageURLUpdate);
+                           System.out.println("\nImage URL updated!");
+                           break;
+
+                        default:
+                           System.out.println("Unrecognized choice!");
+                           break;
+                     }
+
                      break;
 
                   default:
@@ -634,8 +730,13 @@ public class Cafe {
             case 1:
                System.out.println("\nEnter a new password: ");
                String password = in.readLine();
+               while (!checkPassword(password)) {
+                  System.out.println("Password must have a minimum of 8 characters including a capital letter and a special character (ex: ~!@#$%^&*_-+=`|(){}[]:;'<>,.?)");
+                  password = in.readLine();
+               }
                query = String.format("UPDATE USERS SET password = '%s' WHERE login = '%s'", password, updatedUser);
                esql.executeUpdate(query);
+               System.out.println("User successfully created!");
                System.out.println("\nYour password has been updated.");
                break;
 
@@ -672,7 +773,26 @@ public class Cafe {
                else {
                   System.out.println("\nPlease enter the username of the User you are changing.\n");
                   updatedUser = in.readLine();
-                  UpdateProfile(esql, updatedUser);
+                  
+                  boolean userFound = false;
+                  query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", updatedUser);
+                  int numLogin = esql.executeQuery(query);
+                  if (numLogin > 0) {
+                     userFound = true;
+                  }
+                  while(!userFound && !updatedUser.equals("9")) {
+                     System.out.println("Username not found. Please try again or press '9' to quit.");
+                     updatedUser = in.readLine();
+                     query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", updatedUser);
+                     numLogin = esql.executeQuery(query);
+                     if (numLogin > 0) {
+                        userFound = true;
+                     }
+                  }
+                  if (!updatedUser.equals("9")) {
+                     UpdateProfile(esql, updatedUser);
+                  }
+
                }
                break;
             case 9:
