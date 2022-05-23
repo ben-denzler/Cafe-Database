@@ -287,7 +287,7 @@ public class Cafe {
                         Menu(esql, authorizedUser);
                         break;
                      case 2:
-                        UpdateProfile(esql);
+                        UpdateProfile(esql, authorizedUser);
                         break;
                      case 3:
                         PlaceOrder(esql);
@@ -450,9 +450,8 @@ public class Cafe {
          boolean isManager = false;
          String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager,,,'", authorizedUser);
          int userNum = esql.executeQuery(query);
-         if (userNum > 0) {
+         if (userNum > 0)
             isManager = true;
-         }
 
          System.out.println("\nMENU OPTIONS");
          System.out.println("---------");
@@ -487,7 +486,6 @@ public class Cafe {
                System.out.print("\nEnter item name: ");
                String itemName = in.readLine();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
-               System.out.println();
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
@@ -500,7 +498,6 @@ public class Cafe {
                System.out.print("\nEnter 'Drinks', 'Sweets', or 'Soup': ");
                String type = in.readLine();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = '%s'", type);
-               System.out.println();
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
@@ -510,84 +507,11 @@ public class Cafe {
                break;
 
             case 4:
-               if (!isManager) {
+               if (!isManager) 
                   System.out.println("Unrecognized choice!");
-                  break;
-               }
-
-               System.out.println("\nEDIT MENU");
-               System.out.println("---------");
-               System.out.println("1. Add Item");
-               System.out.println("2. Delete Item");
-               System.out.println("3. Update Item");
-               System.out.println(".........................");
-               System.out.println("9. Return to Main Menu");
-
-               switch (readChoice()) {
-
-                  case 1:
-                     System.out.println("\nEnter the name of the new item: ");
-                     String newName = in.readLine();
-                     String newNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newName);
-                     rowNum = esql.executeQuery(newNameQuery);
-                     while ((newName.length() > 50) || (rowNum > 0)) {
-                        System.out.println("Name already exists, or is > 50 characters. Try again: ");
-                        newName = in.readLine();
-                        newNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", newName);
-                        rowNum = esql.executeQuery(newNameQuery);
-                     }
-
-                     System.out.println("Enter the item's type ('Drinks', 'Sweets', or 'Soup'): ");
-                     String newType = in.readLine();
-                     while (!(newType.equals("Drinks")) && !(newType.equals("Sweets")) && !(newType.equals("Soup"))) {
-                        System.out.println("Type must be 'Drinks', 'Sweets', or 'Soup'. Try again: ");
-                        newType = in.readLine();
-                     }
-
-                     System.out.println("Enter the item's price (exclude '$'): ");
-                     String newPrice = in.readLine();
-                     Float newPriceFloat;
-                     try {
-                        newPriceFloat = Float.parseFloat(newPrice);  // Parse string as a float
-                     } catch (Exception e) {
-                        System.out.println("Price must be of the form '12.34'. Please re-add the item.");
-                        break;
-                     }
-
-                     System.out.println("Enter the item's description: ");
-                     String newDescription = in.readLine();
-                     while (newDescription.length() > 400) {
-                        System.out.println("Description must be less than 400 characters. Try again: ");
-                        newDescription = in.readLine();
-                     }
-                     
-                     System.out.println("Enter the item's image URL: ");
-                     String newImageURL = in.readLine();
-                     while (newImageURL.length() > 256) {
-                        System.out.println("Image URL must be less than 256 characters. Try again: ");
-                        newImageURL = in.readLine();
-                     }
-
-                     String newItemUpdate = String.format("INSERT INTO Menu VALUES ('%s', '%s', '%s', '%s', '%s')", newName, newType, newPriceFloat.toString(), newDescription, newImageURL);
-                     esql.executeUpdate(newItemUpdate);
-                     System.out.println("\nItem added!");
-                     break;
-
-                  case 2:
-                     break;
-
-                  case 3:
-                     break;
-
-                  default:
-                     System.out.println("Unrecognized choice!");
-                     break;
-               }
                break;
-
             case 9:
                break;
-
             default:
                System.out.println("Unrecognized choice!");
                break;
@@ -600,7 +524,82 @@ public class Cafe {
    /* FIX: Can only update your own information (phonenumber, favItems, password)
    // FIX: Managers can choose which user to modify (maybe don't include changing logins)
    // FIX: Create an option to go back to the Main Menu */
-   public static void UpdateProfile(Cafe esql) {
+   public static void UpdateProfile(Cafe esql, String authorizedUser) {
+      try {
+         boolean isManager = false;
+         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager,,,'", authorizedUser);
+         int userNum = esql.executeQuery(query);
+         if (userNum > 0) {
+            isManager = true;
+         }
+         
+         String updatedUser = authorizedUser;
+         System.out.println(String.format("\nUPDATE PROFILE OPTIONS (user: %s)", updatedUser));
+         System.out.println("---------");
+         System.out.println("1. Change Password");
+         System.out.println("2. Change Phone Number");
+         System.out.println("3. Change Favorite Items");
+         if (isManager) System.out.println("4. Update a different user");
+         System.out.println(".........................");
+         System.out.println("9. Return to Main Menu");
+         int rowNum = 0;
+
+         switch (readChoice()) {
+
+            case 1:
+               System.out.println("\nEnter a new password: ");
+               String password = in.readLine();
+               query = String.format("UPDATE USERS SET password = '%s' WHERE login = '%s'", password, updatedUser);
+               esql.executeUpdate(query);
+               System.out.println("\nYour password has been updated.");
+               break;
+
+            case 2:
+               System.out.println("\nEnter a new phone number: ");
+               String phoneNum = in.readLine();
+               query = String.format("UPDATE USERS SET phoneNum = '%s' WHERE login = '%s'", phoneNum, updatedUser);
+               esql.executeUpdate(query);
+               System.out.println("\nYour phone number has been updated.");
+               break;
+
+            case 3:
+               System.out.println("\nList of your favorite items: \n");
+               query = String.format("SELECT favItems FROM USERS WHERE login = '%s'", updatedUser);
+               rowNum = esql.executeQueryAndPrintResult(query);
+               if (rowNum > 0) {
+                  System.out.println(String.format("(%d items)", rowNum));
+               } 
+               else {
+                  System.out.println("ERROR: Issue with finding favorite items. Please try again later.");
+               }
+
+               System.out.println("\nPlease enter your new list of favorite items separated by commas.\n");
+               String favItems = in.readLine();
+               query = String.format("UPDATE USERS SET favItems = '%s' WHERE login = '%s'", favItems, updatedUser);
+               esql.executeUpdate(query);
+               System.out.println("\nYour list of favorite items has been updated.");
+               break;
+
+            case 4:
+               if (!isManager) {
+                  System.out.println("Unrecognized choice!");
+               }
+               else {
+                  System.out.println("\nPlease enter the username of the User you are changing.\n");
+                  updatedUser = in.readLine();
+                  UpdateProfile(esql, updatedUser);
+               }
+               break;
+            case 9:
+               break;
+            default:
+               System.out.println("Unrecognized choice!");
+               break;
+         }
+         
+      } catch (Exception e) {
+         System.err.println(e.getMessage());
+      }
    }
 
    /* ORDER
