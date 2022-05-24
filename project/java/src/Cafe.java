@@ -181,8 +181,8 @@ public class Cafe {
 
       int rowCount = 0;
 
-      // iterates through the result set and count nuber of results.
-      if (rs.next()) {
+      // iterates through the result set and counts the number of results.
+      while (rs.next()) {
          rowCount++;
       } // end while
       stmt.close();
@@ -449,7 +449,7 @@ public class Cafe {
       try {
          // Check if the user is a Manager
          boolean isManager = false;
-         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager,,,'", authorizedUser);
+         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager'", authorizedUser);
          int userNum = esql.executeQuery(query);
          if (userNum > 0)
             isManager = true;
@@ -708,7 +708,7 @@ public class Cafe {
    public static void UpdateProfile(Cafe esql, String authorizedUser) {
       try {
          boolean isManager = false;
-         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager,,,'", authorizedUser);
+         String query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager'", authorizedUser);
          int userNum = esql.executeQuery(query);
          if (userNum > 0) {
             isManager = true;
