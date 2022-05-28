@@ -16,8 +16,6 @@ import java.sql.Statement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-// import java.io.File;
-// import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -351,6 +349,9 @@ public class Cafe {
       return input;
    }// end readChoice
 
+   /*
+    * Checks passwords for num chars, special chars etc.
+    */
    public static boolean checkPassword(String password) {
       boolean hasCapital = false;
       boolean hasSpecial = false;
@@ -369,6 +370,7 @@ public class Cafe {
       }
       return (hasCapital && hasSpecial && hasEightNums);
    }
+
    /*
     * Creates a new user with provided login, passowrd and phoneNum
     **/
@@ -807,20 +809,6 @@ public class Cafe {
       }
    }
 
-   /* ORDER
-    * orderid serial UNIQUE NOT NULL,
-    * login char(50), 
-    * paid boolean,
-    * timeStampRecieved timestamp NOT NULL,
-    * total real NOT NULL,
-   
-    * ITEMSTATUS
-    * orderid integer,
-	 * itemName char(50), 
-	 * lastUpdated timestamp NOT NULL,
-	 * status char(20), 
-	 * comments char(130), 
-
    // FIX: Create a unique orderid using getCurrSeqVal
    // FIX: Automatically show menu items and price
    // FIX: Output the current order items every time they add a new item
@@ -829,6 +817,63 @@ public class Cafe {
    // FIX: Ask for any comments between each item
    // FIX: Set the last updated status to when they create the order (www.javapoint.com/java-timestamp) */
    public static void PlaceOrder(Cafe esql) {
+      try {
+         String query;
+         int rowNum;
+         ArrayList<String> orderItems = new ArrayList<String>();
+         ArrayList<Integer> orderPrices = new ArrayList<Integer>();
+         List<List<String>> queryResults = new ArrayList<List<String>>();
+         
+         // Print menu for the user first
+         System.out.println("\nDrinks:\n-------------------------");
+         query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
+         rowNum = esql.executeQueryAndPrintResult(query);
+         System.out.println(String.format("(%d items)", rowNum));
+   
+         System.out.println("\nSweets:\n-------------------------");
+         query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
+         rowNum = esql.executeQueryAndPrintResult(query);
+         System.out.println(String.format("(%d items)", rowNum));
+   
+         System.out.println("\nSoup:\n-------------------------");
+         query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
+         rowNum = esql.executeQueryAndPrintResult(query);
+         System.out.println(String.format("(%d items)", rowNum));
+
+         System.out.println("\nORDER MENU");
+         System.out.println("---------");
+         System.out.println("The menu is shown above! Type 'DONE' to finish.\n");
+         System.out.println("Items in order: None");
+         System.out.println("Order total: $0.00\n");
+
+         int i = 1;
+         String itemName = "";
+         while (!itemName.equals("DONE")) {
+            System.out.print(String.format("Enter name for item #%d: ", i));
+            itemName = in.readLine();
+            if (itemName.equals("DONE")) {
+               System.out.println("\nGoodbye!");
+               break;
+            }
+
+            query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+            queryResults = esql.executeQueryAndReturnResult(query);
+            while ((queryResults.size() == 0) && !itemName.equals("DONE")) {
+               System.out.print("Item not found, try again: ");
+               itemName = in.readLine();
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+               queryResults = esql.executeQueryAndReturnResult(query);
+            }
+
+            if (itemName.equals("DONE")) {
+               System.out.println("\nGoodbye!");
+               break;
+            }
+            ++i;
+         }
+      } catch (Exception e) {
+         System.err.println(e.getMessage());
+      }
    }
 
    /* FIX: View 5 most recent orders (Order history)
@@ -843,4 +888,4 @@ public class Cafe {
 }// end Cafe
 
 // For debugging
-// System.out.println(String.format("itemName = %s, rowNum = %d", itemName, rowNum));
+// System.out.println(String.format("itemName = %s", itemName));
