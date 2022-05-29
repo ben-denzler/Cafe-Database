@@ -704,9 +704,10 @@ public class Cafe {
       }
    }
    
-   /* FIX: Can only update your own information (phonenumber, favItems, password)
-   // FIX: Managers can choose which user to modify (maybe don't include changing logins)
-   // FIX: Create an option to go back to the Main Menu */
+   /*
+    * Users can update their own profile information.
+    * Managers can update the profiles of other users.
+    */
    public static void UpdateProfile(Cafe esql, String authorizedUser) {
       try {
          boolean isManager = false;
@@ -809,19 +810,17 @@ public class Cafe {
       }
    }
 
-   // FIX: Create a unique orderid using getCurrSeqVal
-   // FIX: Automatically show menu items and price
-   // FIX: Output the current order items every time they add a new item
-   // FIX: Menu Option: Done with order
-   // FIX: Ask for what items, create the item's status and keep a running total?
-   // FIX: Ask for any comments between each item
-   // FIX: Set the last updated status to when they create the order (www.javapoint.com/java-timestamp) */
+   /*
+    * Users can place orders by specifying items and comments.
+    * Menu, order details and running total is displayed.
+    */
    public static void PlaceOrder(Cafe esql, String authorizedUser) {
       try {
          String query;
          int rowNum;
          ArrayList<String> orderItems = new ArrayList<String>();
          ArrayList<Float> orderPrices = new ArrayList<Float>();
+         ArrayList<String> orderComments = new ArrayList<String>();
          List<List<String>> queryResults = new ArrayList<List<String>>();
          
          // Print menu for the user first
@@ -845,15 +844,19 @@ public class Cafe {
          System.out.println("The menu is shown above! Type 'DONE' to finish.");
 
          int i = 1;
+         int itemIndex = 0;
          String itemName = "";
          String itemPrice = "";
+         String itemComment = "";
          Float totalPrice = (float)0.0;
+         int nextOrderID = 0;
 
          // Collect items for the order
          while (!itemName.equals("DONE")) {
             System.out.print(String.format("\nEnter name for item #%d: ", i));
             itemName = in.readLine();
 
+            // Get item name, make sure it's valid
             query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
             queryResults = esql.executeQueryAndReturnResult(query);
             while ((queryResults.size() == 0) && !itemName.equals("DONE")) {
@@ -863,6 +866,15 @@ public class Cafe {
                queryResults = esql.executeQueryAndReturnResult(query);
             }
 
+            // Make sure item isn't a duplicate
+            itemIndex = orderItems.indexOf(itemName);
+            while (itemIndex != -1) {
+               System.out.print("Item already added, try again: ");
+               itemName = in.readLine();
+               itemIndex = orderItems.indexOf(itemName);
+            }
+
+            // Handle quitting
             if (itemName.equals("DONE")) {
                if (orderItems.size() == 0) {
                   System.out.println("\nGoodbye!");
@@ -870,9 +882,21 @@ public class Cafe {
                break;
             }
 
+            // Comment for each item
+            System.out.print("Enter item comments, or 'None': ");
+            itemComment = in.readLine();
+            while (itemComment.length() > 130) {
+               System.out.print("\nComment must be under 130 chars. Try again: ");
+               itemComment = in.readLine();
+            }
+            if (itemComment.equals("None")) {
+               itemComment = "";
+            }
+
             itemPrice = queryResults.get(0).get(1);         // Get item price as string
             orderPrices.add(Float.parseFloat(itemPrice));   // Convert price to float, add to list
             orderItems.add(itemName);                       // Add item name to list
+            orderComments.add(itemComment);                 // Add item comment to list
 
             System.out.println("\nYour Order: ");
             System.out.println("--------------");
@@ -888,10 +912,19 @@ public class Cafe {
             ++i;
          }
 
-         // Create new Order instance
+         // Create new Order, first orderid will be 87257
+         nextOrderID = esql.getNextSeqVal("orders_orderid_seq");  
          query = String.format("INSERT INTO Orders VALUES ('%d', '%s', 'false', 'now()', '%f')",
-               esql.getNextSeqVal("orders_orderid_seq"), authorizedUser, totalPrice);
+               nextOrderID, authorizedUser, totalPrice);
          esql.executeUpdate(query);
+
+         // Create ItemStatus for each item
+         for (i = 0; i < orderItems.size(); ++i) {
+            query = String.format("INSERT INTO ItemStatus VALUES ('%d', '%s', 'now()', 'Hasn''t started', '%s')",
+                  nextOrderID, orderItems.get(i), orderComments.get(i));
+            esql.executeUpdate(query);
+         }
+
          System.out.println("\nYour order has been placed!");
 
       } catch (Exception e) {
@@ -910,5 +943,16 @@ public class Cafe {
 
 }// end Cafe
 
-// For debugging
+// DEBUGGING OUTPUT
 // System.out.println(String.format("itemName = %s", itemName));
+
+// DEBUGGING ORDERS
+// System.out.println();
+// query = String.format("SELECT * FROM Orders WHERE orderid = %d", nextOrderID);
+// esql.executeQueryAndPrintResult(query);
+// rowNum = esql.executeQuery(query);
+// System.out.println(String.format("rowNum = %d", rowNum));
+// query = String.format("SELECT * FROM ItemStatus WHERE orderid = %d", nextOrderID);
+// esql.executeQueryAndPrintResult(query);
+// rowNum = esql.executeQuery(query);
+// System.out.println(String.format("rowNum = %d", rowNum));
