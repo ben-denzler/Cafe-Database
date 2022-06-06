@@ -291,7 +291,7 @@ public class Cafe {
                         PlaceOrder(esql, authorizedUser);
                         break;
                      case 4:
-                        UpdateOrder(esql);
+                        UpdateOrder(esql, authorizedUser);
                         break;
                      case 9:
                         System.out.println("\nSuccessfully logged out.");
@@ -348,6 +348,14 @@ public class Cafe {
       } while (true);
       return input;
    }// end readChoice
+
+   public static boolean checkExit(String input) {
+      // Handle quitting
+      if (input.equals("DONE") || input.equals("done") || input.equals("QUIT") || input.equals("Q") || input.equals("q") || input.equals("quit")) {
+         return false;
+      }
+      return true;
+   }
 
    /*
     * Checks passwords for num chars, special chars etc.
@@ -843,6 +851,8 @@ public class Cafe {
          System.out.println("--------------");
          System.out.println("The menu is shown above! Type 'DONE' to finish.");
 
+         // FIXME: toUpper("DONE")
+
          int i = 1;
          int itemIndex = 0;
          String itemName = "";
@@ -852,7 +862,7 @@ public class Cafe {
          int nextOrderID = 0;
 
          // Collect items for the order
-         while (!itemName.equals("DONE")) {
+         while (checkExit(itemName)) {
             System.out.print(String.format("\nEnter name for item #%d: ", i));
             itemName = in.readLine();
 
@@ -938,7 +948,478 @@ public class Cafe {
    // FIX: If employee or manager
    //        Menu Option: Type in orderID and modify it regardless
    //        Menu Option: View all orders within the last 24 hours */
-   public static void UpdateOrder(Cafe esql) {
+   public static void UpdateOrder(Cafe esql, String authorizedUser) {
+      try {
+         String query;
+         String inputOrderString;
+         String itemToUpdate;
+         String itemComment;
+         Float totalPrice = (float)0.0;
+         Float itemPrice = (float)0.0;
+         int inputOrderID;
+         int numRows;
+         boolean wantToChange = true;
+         boolean wantToAdd = true;
+         boolean wantToDelete = true;
+         boolean wantToUpdate = true;
+         boolean usermenu = true;
+         boolean orderMenu = true;
+         boolean isAuthorized = false;
+         List<List<String>> queryResults = new ArrayList<List<String>>();
+         
+         
+
+         // Check if user is a manager
+         boolean isManager = false;
+         query = String.format("SELECT * FROM Users U WHERE U.login = '%s' AND U.type = 'Manager'", authorizedUser);
+         int userNum = esql.executeQuery(query);
+         if (userNum > 0) {
+            isManager = true;
+            isAuthorized = true;
+         }
+         
+         // Update Order Menu Options
+         while (usermenu) {
+            // Print most recent 5 orders from authorizedUser
+            System.out.println(String.format("\n%s's 5 Most Recent Orders:\n-------------------------", authorizedUser));
+            query = String.format("SELECT * FROM Orders WHERE login = '%s' ORDER BY timestamprecieved DESC LIMIT 5", authorizedUser);
+            esql.executeQueryAndPrintResult(query);
+
+            // Output UPDATE ORDER MENU
+            System.out.println("\nUPDATE ORDER MENU");
+            System.out.println("---------");
+            System.out.println("1. Edit an Order");
+            System.out.println("2. Delete an Order");
+            if (isManager) System.out.println("3. View all Orders within 24 hours");
+            System.out.println(".........................");
+            System.out.println("9. Return to MAIN MENU");
+
+            switch (readChoice()) {
+               case 1:
+                  orderMenu = true;
+                  wantToChange = true;
+                  System.out.print("\nPlease enter the orderID of the order you are changing: ");
+                  inputOrderString = in.readLine();
+                  inputOrderID = Integer.parseInt(inputOrderString);
+
+                  // Check if order exists
+                  query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
+                  numRows = esql.executeQuery(query);
+                  wantToChange = checkExit(inputOrderString);
+                  while (numRows <= 0 && wantToChange) {
+                     System.out.println(String.format("Orderid '%d' not found.", inputOrderID));
+                     System.out.print("\nPlease re-enter the orderID of the order you are changing or type 'DONE' to exit: ");
+
+                     inputOrderString = in.readLine();
+                     inputOrderID = Integer.parseInt(inputOrderString);
+                     wantToChange = checkExit(inputOrderString);
+
+                     query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
+                     numRows = esql.executeQuery(query);
+                  }
+                  
+                  // OrderID Exists
+                  if (numRows > 0) {
+                     if (!isManager) {
+                        // Check if it is their own order
+                        query = String.format("SELECT * FROM Orders WHERE login = '%s' AND orderid = '%d'", authorizedUser, inputOrderID);
+                        numRows = esql.executeQuery(query);
+                        if (numRows <= 0) {
+                           System.out.println(String.format("Not authorized to change orderid '%d'.", inputOrderID));
+                        }
+                        else {
+                           // Check if paid for
+                           query = String.format("SELECT * FROM Orders WHERE login = '%s' AND orderid = '%d' AND paid = false", authorizedUser, inputOrderID);
+                           numRows = esql.executeQuery(query);
+                           if (numRows <= 0) {
+                              System.out.println(String.format("\nOrderid '%d' already paid for. Cannot change order.", inputOrderID));
+                           }
+                           else {
+                              isAuthorized = true;
+                           }
+                        }
+                     }
+                     
+                     // The user is authorized to change the order
+                     while (isAuthorized && orderMenu) {
+                        // SUCCESSFUL ORDERID
+                        System.out.println("\nOptions:");
+                        System.out.println("---------");
+                        System.out.println("1. View Order and Total");
+                        System.out.println("2. Add Item");
+                        System.out.println("3. Delete Item");
+                        System.out.println("4. Update Comment");
+                        if (isManager) System.out.println("5. Mark as Paid");
+                        System.out.println(".........................");
+                        System.out.println("9. Return to UPDATE ORDER MENU");
+
+                        switch (readChoice()) {
+                           case 1:
+                              // Output current order
+                              System.out.println(String.format("\nOrder %d's Itemized List:\n-------------------------", inputOrderID));
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
+                              esql.executeQueryAndPrintResult(query);
+
+                              // Output Total Price
+                              query = String.format("SELECT total FROM Orders WHERE orderid = '%d'", inputOrderID);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              totalPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                              System.out.println(String.format("Total price: $%.2f\n", totalPrice));
+
+                              break;
+                           case 2:
+                              wantToAdd = true;
+                              // Output current order
+                              System.out.println(String.format("\nOrder %d's Itemized List:\n-------------------------", inputOrderID));
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
+                              esql.executeQueryAndPrintResult(query);
+
+                              
+                              // Ask for itemName
+                              System.out.print("Please type the item name you would like to add or type 'M' for the menu: ");
+                              itemToUpdate = in.readLine();
+                              wantToAdd = checkExit(itemToUpdate);
+
+                              if (itemToUpdate.equals("M") || itemToUpdate.equals("m")) {
+                                 // Output Menu Items
+                                 System.out.println(String.format("\nMenu Items:\n-------------------------", inputOrderID));
+                                 System.out.println("\nDrinks:\n-------------------------");
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
+                                 numRows = esql.executeQueryAndPrintResult(query);
+                                 System.out.println(String.format("(%d items)", numRows));
+
+                                 System.out.println("\nSweets:\n-------------------------");
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
+                                 numRows = esql.executeQueryAndPrintResult(query);
+                                 System.out.println(String.format("(%d items)", numRows));
+
+                                 System.out.println("\nSoup:\n-------------------------");
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
+                                 numRows = esql.executeQueryAndPrintResult(query);
+                                 System.out.println(String.format("(%d items)", numRows));
+
+                                 System.out.print("\nPlease type the item name you would like to add or type 'DONE': ");
+                                 itemToUpdate = in.readLine();
+                                 wantToAdd = checkExit(itemToUpdate);
+                              }
+
+                              // Get item name, make sure it's valid
+                              query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              while ((queryResults.size() == 0) && wantToAdd) {
+                                 System.out.print("Item not found, try again or type 'DONE': ");
+                                 itemToUpdate = in.readLine();
+                                 wantToAdd = checkExit(itemToUpdate);
+
+                                 if (itemToUpdate.equals("M") || itemToUpdate.equals("m")) {
+                                    // Output Menu Items
+                                    System.out.println(String.format("\nMenu Items:\n-------------------------", inputOrderID));
+                                    System.out.println("\nDrinks:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.println("\nSweets:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.println("\nSoup:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.print("\nPlease type the item name you would like to add or type 'DONE': ");
+                                    itemToUpdate = in.readLine();
+                                    wantToAdd = checkExit(itemToUpdate);
+                                 }
+
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                              }
+
+                              // Make sure item isn't a duplicate
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d' AND itemName = '%s'", inputOrderID, itemToUpdate);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              numRows = esql.executeQuery(query);
+                              while ((queryResults.size() > 0) && wantToAdd) {
+                                 System.out.print("Item already added, try again or type 'DONE': ");
+                                 itemToUpdate = in.readLine();
+                                 wantToAdd = checkExit(itemToUpdate);
+
+                                 if (itemToUpdate.equals("M") || itemToUpdate.equals("m")) {
+                                    // Output Menu Items
+                                    System.out.println(String.format("\nMenu Items:\n-------------------------", inputOrderID));
+                                    System.out.println("\nDrinks:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.println("\nSweets:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.println("\nSoup:\n-------------------------");
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
+                                    numRows = esql.executeQueryAndPrintResult(query);
+                                    System.out.println(String.format("(%d items)", numRows));
+
+                                    System.out.print("\nPlease type the item name you would like to add or type 'DONE': ");
+                                    itemToUpdate = in.readLine();
+                                    wantToAdd = checkExit(itemToUpdate);
+                                 }
+                                 
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                              }
+
+                              // Comment for each item
+                              if(wantToAdd) {
+                                 System.out.print("Enter item comments, or 'None': ");
+                                 itemComment = in.readLine();
+                                 while (itemComment.length() > 130 && wantToAdd) {
+                                    System.out.print("\nComment must be under 130 chars. Try again: ");
+                                    itemComment = in.readLine();
+                                 }
+                                 if (itemComment.equals("None")) {
+                                    itemComment = "";
+                                 }
+
+                                 query = String.format("INSERT INTO ItemStatus VALUES ('%d', '%s', 'now()', 'Hasn''t started', '%s')",
+                                       inputOrderID, itemToUpdate, itemComment);
+                                 esql.executeUpdate(query);
+
+                                 query = String.format("SELECT total FROM Orders WHERE orderid = '%d'", inputOrderID);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                                 totalPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                                 // System.out.print(String.format("DEBUG: Total price: %f\n", totalPrice));
+
+                                 query = String.format("SELECT price FROM Menu WHERE itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                                 itemPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                                 // System.out.print(String.format("DEBUG: Item price: %f\n", itemPrice));
+                                 
+                                 query = String.format("UPDATE Orders SET total = '%f' WHERE orderid = '%d'", totalPrice + itemPrice, inputOrderID);
+                                 esql.executeUpdate(query);
+                              }
+                              else {
+                                 System.out.println(String.format("Cancelling adding to orderid '%d'...", inputOrderID));
+                              }
+
+                              // DEBUG: CHECK TOTAL PRICE AFTERWARDS
+                              // query = String.format("SELECT total FROM Orders WHERE orderid = '%d'", inputOrderID);
+                              // queryResults = esql.executeQueryAndReturnResult(query);
+                              // totalPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                              // System.out.print(String.format("DEBUG: Total price after: %f\n", totalPrice));
+
+                              break;
+                           case 3:
+                              wantToDelete = true;
+                              System.out.println(String.format("\nOrder %d's Itemized List:\n-------------------------", inputOrderID));
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
+                              esql.executeQueryAndPrintResult(query);
+
+                              // Ask for itemName
+                              System.out.print("Please type the item name you would like to delete or type 'DONE': ");
+                              itemToUpdate = in.readLine();
+                              wantToDelete = checkExit(itemToUpdate);
+
+                              // Get item name, make sure it's valid
+                              query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              while ((queryResults.size() == 0) && wantToDelete) {
+                                 System.out.print("Item not found, try again or type 'DONE': ");
+                                 itemToUpdate = in.readLine();
+                                 wantToDelete = checkExit(itemToUpdate);
+
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                              }
+                              
+                              // Get item name, make sure it's valid
+                              query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              while ((queryResults.size() == 0) && wantToDelete) {
+                                 System.out.print("Item not found, try again: ");
+                                 itemToUpdate = in.readLine();
+                                 wantToDelete = checkExit(itemToUpdate);
+
+                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                              }
+
+                              if (queryResults.size() > 0 && wantToDelete) {
+                                 query = String.format("SELECT total FROM Orders WHERE orderid = '%d'", inputOrderID);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                                 totalPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                                 // System.out.print(String.format("DEBUG: Total price: %f\n", totalPrice));
+
+                                 query = String.format("SELECT price FROM Menu WHERE itemName = '%s'", itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                                 itemPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
+                                 // System.out.print(String.format("DEBUG: Item price: %f\n", itemPrice));
+
+                                 query = String.format("DELETE FROM ItemStatus WHERE orderid = '%d' AND itemName = '%s'", inputOrderID, itemToUpdate);
+                                 esql.executeUpdate(query);
+
+                                 query = String.format("UPDATE Orders SET total = '%f' WHERE orderid = '%d'", totalPrice - itemPrice, inputOrderID);
+                                 esql.executeUpdate(query);
+                                 System.out.println("Item successfully deleted.");
+                              }
+                              else {
+                                 System.out.println(String.format("Cancelling deleting from orderid '%d'...", inputOrderID));
+                              }
+                              break;
+                           case 4:
+                              // Output current order
+                              wantToUpdate = true;
+                              System.out.println(String.format("\nOrder %d's Itemized List:\n-------------------------", inputOrderID));
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
+                              esql.executeQueryAndPrintResult(query);
+
+                              // Ask for itemName
+                              System.out.print("Please type the item name you would like to update or type 'DONE': ");
+                              itemToUpdate = in.readLine();
+                              wantToUpdate = checkExit(itemToUpdate);
+
+                              // Get item name, make sure it's valid
+                              query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d' AND itemName = '%s'", inputOrderID, itemToUpdate);
+                              queryResults = esql.executeQueryAndReturnResult(query);
+                              while ((queryResults.size() == 0) && wantToUpdate) {
+                                 System.out.print("Item not found in order, try again or type 'DONE': ");
+                                 itemToUpdate = in.readLine();
+                                 wantToUpdate = checkExit(itemToUpdate);
+
+                                 query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d' AND itemName = '%s'", inputOrderID, itemToUpdate);
+                                 queryResults = esql.executeQueryAndReturnResult(query);
+                              }
+
+                              if ((queryResults.size() > 0) && wantToUpdate) {
+                                 System.out.print("Enter item comments, or 'None' (Note: The comment will be replaced.): ");
+                                 itemComment = in.readLine();
+
+                                 while (itemComment.length() > 130) {
+                                    System.out.print("\nComment must be under 130 chars. Try again: ");
+                                    itemComment = in.readLine();
+                                 }
+
+                                 if (itemComment.equals("None")) {
+                                    itemComment = "";
+                                 }
+
+                                 query = String.format("UPDATE ItemStatus SET comments = '%s' WHERE orderid = '%d' AND itemName = '%s'", itemComment, inputOrderID, itemToUpdate);
+                                 esql.executeUpdate(query);
+
+                                 System.out.println("\nItem's comment has been updated!");
+                              }
+                              
+
+                              break;
+                           case 5:
+                              if (!isManager) {
+                                 System.out.println("Unrecognized choice!");
+                              }
+                              else {
+                                 String updatePaidQuery = String.format("UPDATE Orders SET paid = 'true' WHERE orderid = '%d'", inputOrderID);
+                                 esql.executeUpdate(updatePaidQuery);
+                                 // FIXME: change this to be outputing which order was updated
+                                 System.out.println(String.format("\nOrderid '%d' marked as paid!", inputOrderID));
+                              }
+                              break;
+                           case 9:
+                              orderMenu = false;
+                              break;
+                           default:
+                              System.out.println("Unrecognized choice!");
+                           break;
+                        }
+                     }
+                  }
+
+                  break;
+               case 2:
+                  orderMenu = true;
+                  wantToChange = true;
+                  System.out.print("\nPlease enter the orderID of the order you are deleting: ");
+                  inputOrderString = in.readLine();
+                  inputOrderID = Integer.parseInt(inputOrderString);
+
+                  // Check if order exists
+                  query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
+                  numRows = esql.executeQuery(query);
+                  wantToChange = checkExit(inputOrderString);
+                  while (numRows <= 0 && wantToChange) {
+                     System.out.println(String.format("Orderid '%d' not found.", inputOrderID));
+                     System.out.print("\nPlease re-enter the orderID of the order you are deleting or type 'DONE' to exit: ");
+
+                     inputOrderString = in.readLine();
+                     inputOrderID = Integer.parseInt(inputOrderString);
+                     wantToChange = checkExit(inputOrderString);
+
+                     query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
+                     numRows = esql.executeQuery(query);
+                  }
+                  
+                  // OrderID Exists
+                  if (numRows > 0) {
+                     if (!isManager) {
+                        // Check if it is their own order
+                        query = String.format("SELECT * FROM Orders WHERE login = '%s' AND orderid = '%d'", authorizedUser, inputOrderID);
+                        numRows = esql.executeQuery(query);
+                        if (numRows <= 0) {
+                           System.out.println(String.format("Not authorized to change orderid '%d'.", inputOrderID));
+                        }
+                        else {
+                           // Check if paid for
+                           query = String.format("SELECT * FROM Orders WHERE login = '%s' AND orderid = '%d' AND paid = false", authorizedUser, inputOrderID);
+                           numRows = esql.executeQuery(query);
+                           if (numRows <= 0) {
+                              System.out.println(String.format("Orderid '%d' already paid for. Cannot change order.", inputOrderID));
+                           }
+                           else {
+                              isAuthorized = true;
+                           }
+                        }
+                     }
+                  }
+
+                  if (isAuthorized) {
+                     System.out.print(String.format("\nAre you sure you want to delete orderid '%d' (Y/N): ", inputOrderID));
+                     inputOrderString = in.readLine();
+                     if (inputOrderString.equals("Yes") || inputOrderString.equals("yes") || inputOrderString.equals("Y") || inputOrderString.equals("y")) {
+                        String deletionUpdate = String.format("DELETE FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
+                        esql.executeUpdate(deletionUpdate);
+                        deletionUpdate = String.format("DELETE FROM Orders WHERE orderid = '%d'", inputOrderID);
+                        esql.executeUpdate(deletionUpdate);
+                        System.out.println(String.format("\nDeleted orderid '%d' successfully.", inputOrderID));
+                     }
+                     else {
+                        System.out.print(String.format("\nCancelling deletion of orderid '%d'...", inputOrderID));
+                     }
+                  }
+                  break;
+               case 3:
+                  if (!isManager) {
+                     System.out.println("Unrecognized choice!");
+                  }
+                  else {
+                     query = String.format("SELECT * FROM Orders WHERE timeStampRecieved > (SELECT NOW()- interval '1 day') ORDER BY timestamprecieved DESC");
+                     numRows = esql.executeQueryAndPrintResult(query);
+                     System.out.println(String.format("(%d items)", numRows));
+                  }
+                  break;
+               case 9:
+                  usermenu = false;
+                  break;
+               default:
+                  System.out.println("Unrecognized choice!");
+                  break;
+            }
+         }
+      } catch (Exception e) {
+         System.err.println(e.getMessage());
+      }
    }
 
 }// end Cafe
@@ -956,3 +1437,4 @@ public class Cafe {
 // esql.executeQueryAndPrintResult(query);
 // rowNum = esql.executeQuery(query);
 // System.out.println(String.format("rowNum = %d", rowNum));
+ 
