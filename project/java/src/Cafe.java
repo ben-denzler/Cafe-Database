@@ -387,7 +387,7 @@ public class Cafe {
       try {
          System.out.print("\tEnter user login: ");
          String login = in.readLine();
-         
+
          // (EC) Add check if the login is already taken
          boolean alreadyExists = false;
          String query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", login);
@@ -405,7 +405,7 @@ public class Cafe {
             if (checkPassword(password)) {
                System.out.print("\tEnter user phone: ");
                String phone = in.readLine();
-      
+
                String type = "Customer";
                String favItems = "";
                String query2 = String.format(
@@ -496,6 +496,7 @@ public class Cafe {
             case 2:
                System.out.print("\nEnter item name: ");
                String itemName = in.readLine();
+               System.out.println();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
@@ -508,13 +509,14 @@ public class Cafe {
             case 3:
                System.out.print("\nEnter 'Drinks', 'Sweets', or 'Soup': ");
                String type = in.readLine();
+               System.out.println();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = '%s'", type);
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
                } else {
                   System.out.println("Invalid input, please try again.");
-               } 
+               }
                break;
 
             case 4:
@@ -568,7 +570,7 @@ public class Cafe {
                         System.out.println("Description must be less than 400 characters. Try again: ");
                         newDescription = in.readLine();
                      }
-                     
+
                      System.out.println("Enter the item's image URL: ");
                      String newImageURL = in.readLine();
                      while (newImageURL.length() > 256) {
@@ -608,7 +610,7 @@ public class Cafe {
                         itemToUpdateQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", itemToUpdate);
                         rowNum = esql.executeQuery(itemToUpdateQuery);
                      }
-                     
+
                      System.out.println(String.format("\nUPDATE ITEM MENU (updating '%s')", itemToUpdate));
                      System.out.println("---------");
                      System.out.println("1. Update Name");
@@ -711,7 +713,7 @@ public class Cafe {
          System.err.println(e.getMessage());
       }
    }
-   
+
    /*
     * Users can update their own profile information.
     * Managers can update the profiles of other users.
@@ -724,14 +726,24 @@ public class Cafe {
          if (userNum > 0) {
             isManager = true;
          }
-         
+
          String updatedUser = authorizedUser;
+         List<List<String>> queryResults = new ArrayList<List<String>>();
+         queryResults = esql.executeQueryAndReturnResult(String.format("SELECT * FROM Users WHERE login = '%s'", authorizedUser));
+         String userPassword = queryResults.get(0).get(2);
+         String userPhone = queryResults.get(0).get(1);
+         String userFavItems = queryResults.get(0).get(3);
+
          System.out.println(String.format("\nUPDATE PROFILE OPTIONS (user: %s)", updatedUser));
-         System.out.println("---------");
+         System.out.println("----------------------");
+         System.out.println(String.format("Password: %s", userPassword));
+         System.out.println(String.format("Phone #: %s", userPhone));
+         System.out.println(String.format("Fav Items: %s", userFavItems).trim());
+         System.out.println("----------------------");
          System.out.println("1. Change Password");
          System.out.println("2. Change Phone Number");
          System.out.println("3. Change Favorite Items");
-         if (isManager) System.out.println("4. Update a different user");
+         if (isManager) System.out.println("4. Update a Different User");
          System.out.println(".........................");
          System.out.println("9. Return to Main Menu");
          int rowNum = 0;
@@ -753,7 +765,15 @@ public class Cafe {
 
             case 2:
                System.out.println("\nEnter a new phone number: ");
-               String phoneNum = in.readLine();
+               String phoneNum = in.readLine().trim();
+               String newPhoneQuery = String.format("SELECT * FROM Users WHERE phoneNum = '%s'", phoneNum);
+               rowNum = esql.executeQuery(newPhoneQuery);
+               while ((rowNum > 0) || (phoneNum.length() > 11)) {
+                  System.out.println("Phone number is taken or is too long, please try again: ");
+                  phoneNum = in.readLine().trim();
+                  newPhoneQuery = String.format("SELECT * FROM Users WHERE phoneNum = '%s'", phoneNum);
+                  rowNum = esql.executeQuery(newPhoneQuery);
+               }
                query = String.format("UPDATE USERS SET phoneNum = '%s' WHERE login = '%s'", phoneNum, updatedUser);
                esql.executeUpdate(query);
                System.out.println("\nYour phone number has been updated.");
@@ -765,7 +785,7 @@ public class Cafe {
                rowNum = esql.executeQueryAndPrintResult(query);
                if (rowNum > 0) {
                   System.out.println(String.format("(%d items)", rowNum));
-               } 
+               }
                else {
                   System.out.println("ERROR: Issue with finding favorite items. Please try again later.");
                }
@@ -782,9 +802,9 @@ public class Cafe {
                   System.out.println("Unrecognized choice!");
                }
                else {
-                  System.out.println("\nPlease enter the username of the User you are changing.\n");
+                  System.out.println("\nPlease enter the username of the User you are changing:");
                   updatedUser = in.readLine();
-                  
+
                   boolean userFound = false;
                   query = String.format("SELECT * FROM Users U WHERE U.login = '%s'", updatedUser);
                   int numLogin = esql.executeQuery(query);
@@ -803,7 +823,6 @@ public class Cafe {
                   if (!updatedUser.equals("9")) {
                      UpdateProfile(esql, updatedUser);
                   }
-
                }
                break;
             case 9:
@@ -812,7 +831,6 @@ public class Cafe {
                System.out.println("Unrecognized choice!");
                break;
          }
-         
       } catch (Exception e) {
          System.err.println(e.getMessage());
       }
@@ -830,18 +848,18 @@ public class Cafe {
          ArrayList<Float> orderPrices = new ArrayList<Float>();
          ArrayList<String> orderComments = new ArrayList<String>();
          List<List<String>> queryResults = new ArrayList<List<String>>();
-         
+
          // Print menu for the user first
          System.out.println("\nDrinks:\n-------------------------");
          query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Drinks'");
          rowNum = esql.executeQueryAndPrintResult(query);
          System.out.println(String.format("(%d items)", rowNum));
-   
+
          System.out.println("\nSweets:\n-------------------------");
          query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Sweets'");
          rowNum = esql.executeQueryAndPrintResult(query);
          System.out.println(String.format("(%d items)", rowNum));
-   
+
          System.out.println("\nSoup:\n-------------------------");
          query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.type = 'Soup'");
          rowNum = esql.executeQueryAndPrintResult(query);
@@ -922,7 +940,7 @@ public class Cafe {
          }
 
          // Create new Order, first orderid will be 87257
-         nextOrderID = esql.getNextSeqVal("orders_orderid_seq");  
+         nextOrderID = esql.getNextSeqVal("orders_orderid_seq");
          query = String.format("INSERT INTO Orders VALUES ('%d', '%s', 'false', 'now()', '%f')",
                nextOrderID, authorizedUser, totalPrice);
          esql.executeUpdate(query);
@@ -963,8 +981,6 @@ public class Cafe {
          boolean orderMenu = true;
          boolean isAuthorized = false;
          List<List<String>> queryResults = new ArrayList<List<String>>();
-         
-         
 
          // Check if user is a manager
          boolean isManager = false;
@@ -974,7 +990,7 @@ public class Cafe {
             isManager = true;
             isAuthorized = true;
          }
-         
+
          // Update Order Menu Options
          while (usermenu) {
             // Print most recent 5 orders from authorizedUser
@@ -984,10 +1000,10 @@ public class Cafe {
 
             // Output UPDATE ORDER MENU
             System.out.println("\nUPDATE ORDER MENU");
-            System.out.println("---------");
+            System.out.println("-----------------");
             System.out.println("1. Edit an Order");
             System.out.println("2. Delete an Order");
-            if (isManager) System.out.println("3. View all Orders within 24 hours");
+            if (isManager) System.out.println("3. View All Orders Within 24 Hours");
             System.out.println(".........................");
             System.out.println("9. Return to MAIN MENU");
 
@@ -1014,7 +1030,7 @@ public class Cafe {
                      query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
                      numRows = esql.executeQuery(query);
                   }
-                  
+
                   // OrderID Exists
                   if (numRows > 0) {
                      if (!isManager) {
@@ -1036,7 +1052,7 @@ public class Cafe {
                            }
                         }
                      }
-                     
+
                      // The user is authorized to change the order
                      while (isAuthorized && orderMenu) {
                         // SUCCESSFUL ORDERID
@@ -1071,7 +1087,7 @@ public class Cafe {
                               query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d'", inputOrderID);
                               esql.executeQueryAndPrintResult(query);
 
-                              
+
                               // Ask for itemName
                               System.out.print("Please type the item name you would like to add or type 'M' for the menu: ");
                               itemToUpdate = in.readLine();
@@ -1166,7 +1182,7 @@ public class Cafe {
                                     itemToUpdate = in.readLine();
                                     wantToAdd = checkExit(itemToUpdate);
                                  }
-                                 
+
                                  query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
                                  queryResults = esql.executeQueryAndReturnResult(query);
                               }
@@ -1196,7 +1212,7 @@ public class Cafe {
                                  queryResults = esql.executeQueryAndReturnResult(query);
                                  itemPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
                                  // System.out.print(String.format("DEBUG: Item price: %f\n", itemPrice));
-                                 
+
                                  query = String.format("UPDATE Orders SET total = '%f' WHERE orderid = '%d'", totalPrice + itemPrice, inputOrderID);
                                  esql.executeUpdate(query);
                               }
@@ -1233,7 +1249,7 @@ public class Cafe {
                                  query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
                                  queryResults = esql.executeQueryAndReturnResult(query);
                               }
-                              
+
                               // Get item name, make sure it's valid
                               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
                               queryResults = esql.executeQueryAndReturnResult(query);
@@ -1262,7 +1278,7 @@ public class Cafe {
 
                                  query = String.format("UPDATE Orders SET total = '%f' WHERE orderid = '%d'", totalPrice - itemPrice, inputOrderID);
                                  esql.executeUpdate(query);
-                                 System.out.println("Item successfully deleted.");
+                                 System.out.println("\nItem successfully deleted.");
                               }
                               else {
                                  System.out.println(String.format("Cancelling deleting from orderid '%d'...", inputOrderID));
@@ -1310,7 +1326,7 @@ public class Cafe {
 
                                  System.out.println("\nItem's comment has been updated!");
                               }
-                              
+
 
                               break;
                            case 5:
@@ -1320,7 +1336,7 @@ public class Cafe {
                               else {
                                  String updatePaidQuery = String.format("UPDATE Orders SET paid = 'true' WHERE orderid = '%d'", inputOrderID);
                                  esql.executeUpdate(updatePaidQuery);
-                                 // FIXME: change this to be outputing which order was updated
+                                 // FIX: change this to be outputing which order was updated
                                  System.out.println(String.format("\nOrderid '%d' marked as paid!", inputOrderID));
                               }
                               break;
@@ -1333,7 +1349,6 @@ public class Cafe {
                         }
                      }
                   }
-
                   break;
                case 2:
                   orderMenu = true;
@@ -1357,7 +1372,7 @@ public class Cafe {
                      query = String.format("SELECT * FROM Orders WHERE orderid = '%d'", inputOrderID);
                      numRows = esql.executeQuery(query);
                   }
-                  
+
                   // OrderID Exists
                   if (numRows > 0) {
                      if (!isManager) {
