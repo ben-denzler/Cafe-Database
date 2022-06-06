@@ -7,7 +7,6 @@
  * University of California - Riverside
  *
  * Target DBMS: 'Postgres'
- *
  */
 
 import java.sql.DriverManager;
@@ -24,14 +23,13 @@ import java.util.ArrayList;
 /**
  * This class defines a simple embedded SQL utility class that is designed to
  * work with PostgreSQL JDBC drivers.
- *
  */
 public class Cafe {
 
-   // reference to physical database connection.
+   // Reference to physical database connection.
    private Connection _connection = null;
 
-   // handling the keyboard inputs through a BufferedReader
+   // Handling the keyboard inputs through a BufferedReader
    // This variable can be global for convenience.
    static BufferedReader in = new BufferedReader(
          new InputStreamReader(System.in));
@@ -205,7 +203,7 @@ public class Cafe {
       return -1;
    }
 
-   /**
+   /*
     * Method to close the physical connection if it is open.
     */
    public void cleanup() {
@@ -220,9 +218,7 @@ public class Cafe {
 
    /**
     * The main execution method
-    *
-    * @param args the command line arguments this inclues the <mysql|pgsql> <login
-    *             file>
+    * @param args the command line arguments this inclues the <mysql|pgsql> <login file>
     */
    public static void main(String[] args) {
       if (args.length != 3) {
@@ -321,6 +317,9 @@ public class Cafe {
       } // end try
    }// end main
 
+   /*
+    * Prints a greeting for the UI.
+    */
    public static void Greeting() {
       System.out.println(
             "\n\n*******************************************************\n" +
@@ -328,11 +327,10 @@ public class Cafe {
                   "*******************************************************\n");
    }// end Greeting
 
-   /*`
+   /*
     * Reads the users choice given from the keyboard
-    * 
     * @int
-    **/
+    */
    public static int readChoice() {
       int input;
       // returns only if a correct value is given.
@@ -349,9 +347,12 @@ public class Cafe {
       return input;
    }// end readChoice
 
+   /*
+    * Checks if the user is exiting the menu.
+    */
    public static boolean checkExit(String input) {
       // Handle quitting
-      if (input.equals("DONE") || input.equals("done") || input.equals("QUIT") || input.equals("Q") || input.equals("q") || input.equals("quit")) {
+      if (input.equalsIgnoreCase("DONE")  || input.equalsIgnoreCase("QUIT") || input.equalsIgnoreCase("Q")) {
          return false;
       }
       return true;
@@ -381,7 +382,7 @@ public class Cafe {
 
    /*
     * Creates a new user with provided login, passowrd and phoneNum
-    **/
+    */
    public static void CreateUser(Cafe esql) {
       try {
          System.out.print("\tEnter user login: ");
@@ -425,9 +426,8 @@ public class Cafe {
 
    /*
     * Check log in credentials for an existing user
-    * 
     * @return User login or null is the user does not exist
-    **/
+    */
    public static String LogIn(Cafe esql) {
       try {
          System.out.print("\nEnter user login: ");
@@ -941,12 +941,10 @@ public class Cafe {
       }
    }
 
-   /* FIX: View 5 most recent orders (Order history)
-   // FIX: If customer
-   //        Menu Option: Type in orderID and modify it if its not paid
-   // FIX: If employee or manager
-   //        Menu Option: Type in orderID and modify it regardless
-   //        Menu Option: View all orders within the last 24 hours */
+   /*
+    * Users can view their 5 most recent orders and update them.
+    * Managers can update others' orders.
+    */
    public static void UpdateOrder(Cafe esql, String authorizedUser) {
       try {
          String query;
@@ -1422,18 +1420,3 @@ public class Cafe {
    }
 
 }// end Cafe
-
-// DEBUGGING OUTPUT
-// System.out.println(String.format("itemName = %s", itemName));
-
-// DEBUGGING ORDERS
-// System.out.println();
-// query = String.format("SELECT * FROM Orders WHERE orderid = %d", nextOrderID);
-// esql.executeQueryAndPrintResult(query);
-// rowNum = esql.executeQuery(query);
-// System.out.println(String.format("rowNum = %d", rowNum));
-// query = String.format("SELECT * FROM ItemStatus WHERE orderid = %d", nextOrderID);
-// esql.executeQueryAndPrintResult(query);
-// rowNum = esql.executeQuery(query);
-// System.out.println(String.format("rowNum = %d", rowNum));
- 
