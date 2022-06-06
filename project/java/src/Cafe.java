@@ -851,8 +851,6 @@ public class Cafe {
          System.out.println("--------------");
          System.out.println("The menu is shown above! Type 'DONE' to finish.");
 
-         // FIXME: toUpper("DONE")
-
          int i = 1;
          int itemIndex = 0;
          String itemName = "";
@@ -862,16 +860,16 @@ public class Cafe {
          int nextOrderID = 0;
 
          // Collect items for the order
-         while (checkExit(itemName)) {
-            System.out.print(String.format("\nEnter name for item #%d: ", i));
-            itemName = in.readLine();
+         while (!itemName.equalsIgnoreCase("DONE")) {
+            System.out.print(String.format("\nEnter name for item #%d, or 'DONE' to finish: ", i));
+            itemName = in.readLine().trim();
 
             // Get item name, make sure it's valid
             query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
             queryResults = esql.executeQueryAndReturnResult(query);
-            while ((queryResults.size() == 0) && !itemName.equals("DONE")) {
+            while ((queryResults.size() == 0) && !itemName.equalsIgnoreCase("DONE")) {
                System.out.print("Item not found, try again: ");
-               itemName = in.readLine();
+               itemName = in.readLine().trim();
                query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
                queryResults = esql.executeQueryAndReturnResult(query);
             }
@@ -880,32 +878,33 @@ public class Cafe {
             itemIndex = orderItems.indexOf(itemName);
             while (itemIndex != -1) {
                System.out.print("Item already added, try again: ");
-               itemName = in.readLine();
+               itemName = in.readLine().trim();
                itemIndex = orderItems.indexOf(itemName);
             }
 
             // Handle quitting
-            if (itemName.equals("DONE")) {
+            if (itemName.equalsIgnoreCase("DONE")) {
                if (orderItems.size() == 0) {
                   System.out.println("\nGoodbye!");
+                  return;
                }
                break;
             }
 
             // Comment for each item
             System.out.print("Enter item comments, or 'None': ");
-            itemComment = in.readLine();
+            itemComment = in.readLine().trim();
             while (itemComment.length() > 130) {
                System.out.print("\nComment must be under 130 chars. Try again: ");
-               itemComment = in.readLine();
+               itemComment = in.readLine().trim();
             }
-            if (itemComment.equals("None")) {
+            if (itemComment.equalsIgnoreCase("None")) {
                itemComment = "";
             }
 
             itemPrice = queryResults.get(0).get(1);         // Get item price as string
             orderPrices.add(Float.parseFloat(itemPrice));   // Convert price to float, add to list
-            orderItems.add(itemName);                       // Add item name to list
+            orderItems.add(queryResults.get(0).get(0));     // Add item name to list
             orderComments.add(itemComment);                 // Add item comment to list
 
             System.out.println("\nYour Order: ");
