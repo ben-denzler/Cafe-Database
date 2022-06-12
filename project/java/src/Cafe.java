@@ -585,18 +585,26 @@ public class Cafe {
 
                   case 2:
                      System.out.println("\nEnter the name of the item to delete: ");
-                     String deleteName = in.readLine();
+                     String deleteName = in.readLine().trim();
                      String deleteNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", deleteName);
                      rowNum = esql.executeQuery(deleteNameQuery);
                      while ((deleteName.length() > 50) || (rowNum == 0)) {
                         System.out.println("Name not found, or is > 50 characters. Try again: ");
-                        deleteName = in.readLine();
+                        deleteName = in.readLine().trim();
                         deleteNameQuery = String.format("SELECT * FROM Menu WHERE itemName = '%s'", deleteName);
                         rowNum = esql.executeQuery(deleteNameQuery);
                      }
-                     String deletionUpdate = String.format("DELETE FROM Menu WHERE itemName = '%s'", deleteName);
-                     esql.executeUpdate(deletionUpdate);
-                     System.out.println("\nItem deleted!");
+                     deleteNameQuery = String.format("SELECT * FROM ItemStatus WHERE itemName = '%s'", deleteName);
+                     rowNum = esql.executeQuery(deleteNameQuery);
+                     if (rowNum == 0) {
+                        String deletionUpdate = String.format("DELETE FROM Menu WHERE itemName = '%s'", deleteName);
+                        esql.executeUpdate(deletionUpdate);
+                        System.out.println("\nItem deleted!");
+                     }
+                     else {
+                        System.out.println("\nItem cannot be deleted because it has been previously ordered.");
+                     }
+
                      break;
 
                   case 3:
@@ -759,7 +767,6 @@ public class Cafe {
                }
                query = String.format("UPDATE USERS SET password = '%s' WHERE login = '%s'", password, updatedUser);
                esql.executeUpdate(query);
-               System.out.println("User successfully created!");
                System.out.println("\nYour password has been updated.");
                break;
 
@@ -897,6 +904,16 @@ public class Cafe {
             while (itemIndex != -1) {
                System.out.print("Item already added, try again: ");
                itemName = in.readLine().trim();
+               
+               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+               queryResults = esql.executeQueryAndReturnResult(query);
+               while (queryResults.size() == 0) {
+                  System.out.print("Item not found, try again: ");
+                  itemName = in.readLine().trim();
+                  query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemName);
+                  queryResults = esql.executeQueryAndReturnResult(query);
+               }
+
                itemIndex = orderItems.indexOf(itemName);
             }
 
@@ -922,7 +939,7 @@ public class Cafe {
 
             itemPrice = queryResults.get(0).get(1);         // Get item price as string
             orderPrices.add(Float.parseFloat(itemPrice));   // Convert price to float, add to list
-            orderItems.add(queryResults.get(0).get(0));     // Add item name to list
+            orderItems.add(itemName);     // Add item name to list
             orderComments.add(itemComment);                 // Add item comment to list
 
             System.out.println("\nYour Order: ");
@@ -981,6 +998,7 @@ public class Cafe {
          boolean orderMenu = true;
          boolean isAuthorized = false;
          List<List<String>> queryResults = new ArrayList<List<String>>();
+         List<List<String>> queryResults2 = new ArrayList<List<String>>();
 
          // Check if user is a manager
          boolean isManager = false;
@@ -1143,7 +1161,7 @@ public class Cafe {
                                     System.out.println(String.format("(%d items)", numRows));
 
                                     System.out.print("\nPlease type the item name you would like to add or type 'DONE': ");
-                                    itemToUpdate = in.readLine();
+                                    itemToUpdate = in.readLine().trim();
                                     wantToAdd = checkExit(itemToUpdate);
                                  }
 
@@ -1157,7 +1175,7 @@ public class Cafe {
                               numRows = esql.executeQuery(query);
                               while ((queryResults.size() > 0) && wantToAdd) {
                                  System.out.print("Item already added, try again or type 'DONE': ");
-                                 itemToUpdate = in.readLine();
+                                 itemToUpdate = in.readLine().trim();
                                  wantToAdd = checkExit(itemToUpdate);
 
                                  if (itemToUpdate.equals("M") || itemToUpdate.equals("m")) {
@@ -1179,11 +1197,20 @@ public class Cafe {
                                     System.out.println(String.format("(%d items)", numRows));
 
                                     System.out.print("\nPlease type the item name you would like to add or type 'DONE': ");
-                                    itemToUpdate = in.readLine();
+                                    itemToUpdate = in.readLine().trim();
                                     wantToAdd = checkExit(itemToUpdate);
                                  }
 
                                  query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                 queryResults2 = esql.executeQueryAndReturnResult(query);
+                                 while (queryResults2.size() == 0 && wantToAdd) {
+                                    System.out.print("Item not found, try again: ");
+                                    itemToUpdate = in.readLine().trim();
+                                    query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
+                                    queryResults2 = esql.executeQueryAndReturnResult(query);
+                                 }
+
+                                 query = String.format("SELECT * FROM ItemStatus WHERE orderid = '%d' AND itemName = '%s'", inputOrderID, itemToUpdate);
                                  queryResults = esql.executeQueryAndReturnResult(query);
                               }
 
@@ -1241,28 +1268,21 @@ public class Cafe {
                               // Get item name, make sure it's valid
                               query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
                               queryResults = esql.executeQueryAndReturnResult(query);
-                              while ((queryResults.size() == 0) && wantToDelete) {
-                                 System.out.print("Item not found, try again or type 'DONE': ");
+                              query = String.format("SELECT * FROM ItemStatus WHERE itemName = '%s' AND orderid = '%d'", itemToUpdate, inputOrderID);
+                              queryResults2 = esql.executeQueryAndReturnResult(query);
+
+                              while (((queryResults.size() == 0) || (queryResults2.size() == 0)) && wantToDelete) {
+                                 System.out.print("Item not found in order, try again or type 'DONE': ");
                                  itemToUpdate = in.readLine();
                                  wantToDelete = checkExit(itemToUpdate);
 
                                  query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
                                  queryResults = esql.executeQueryAndReturnResult(query);
+                                 query = String.format("SELECT * FROM ItemStatus WHERE itemName = '%s' AND orderid = '%d'", itemToUpdate, inputOrderID);
+                                 queryResults2 = esql.executeQueryAndReturnResult(query);
                               }
 
-                              // Get item name, make sure it's valid
-                              query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
-                              queryResults = esql.executeQueryAndReturnResult(query);
-                              while ((queryResults.size() == 0) && wantToDelete) {
-                                 System.out.print("Item not found, try again: ");
-                                 itemToUpdate = in.readLine();
-                                 wantToDelete = checkExit(itemToUpdate);
-
-                                 query = String.format("SELECT M.itemName AS Name, M.price AS Price, M.description AS Types FROM Menu M WHERE M.itemName = '%s'", itemToUpdate);
-                                 queryResults = esql.executeQueryAndReturnResult(query);
-                              }
-
-                              if (queryResults.size() > 0 && wantToDelete) {
+                              if (queryResults.size() > 0 && (queryResults2.size() > 0) && wantToDelete) {
                                  query = String.format("SELECT total FROM Orders WHERE orderid = '%d'", inputOrderID);
                                  queryResults = esql.executeQueryAndReturnResult(query);
                                  totalPrice = Float.valueOf(queryResults.get(0).get(0)).floatValue();         // Get item price as string
@@ -1416,6 +1436,7 @@ public class Cafe {
                      System.out.println("Unrecognized choice!");
                   }
                   else {
+                     System.out.println("\nAll Orders Within 24 Hours:\n-------------------------");
                      query = String.format("SELECT * FROM Orders WHERE timeStampRecieved > (SELECT NOW()- interval '1 day') ORDER BY timestamprecieved DESC");
                      numRows = esql.executeQueryAndPrintResult(query);
                      System.out.println(String.format("(%d items)", numRows));
