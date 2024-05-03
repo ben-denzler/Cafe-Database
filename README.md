@@ -2,6 +2,8 @@
 
 This project provides a terminal-based interface for cafe customers to browse the cafe's menu, search for items by name/category, place orders, and update their orders. Users must log in with credentials to access the system, which validates whether they are a manager or a regular customer. Managers have the additional privileges of editing menu items and updating others' profiles.
 
+This project was completed for a database course to gain practice with Java and SQL.
+
 ## Features
 
 - **Customer Interface**
